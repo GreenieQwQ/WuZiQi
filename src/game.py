@@ -70,6 +70,20 @@ class Board:
     def sensible_moves(self):
         return [m for m in self.availables if self.is_sensible_move(m)]
 
+    # 悔棋
+    def cancel_move(self, m):
+        try:
+            self.states.pop(m)
+            self.availables.append(m)
+            # 更换对手
+            self.current_player = (
+                self.players[0]
+                if self.current_player == self.players[1]
+                else self.players[1]
+            )
+        except KeyError:
+            print("WARNING: key doesn't exist.")
+
     def do_move(self, move):
         self.states[move] = self.current_player
         # 可下子减少
@@ -100,45 +114,61 @@ class Board:
         if states.get(m - 1, None) != player:
             if (w in range(width - n + 1) and
                     len(set(states.get(i, None) for i in range(m, m + n))) == 1):
-                cnt_block = 0
-                if w - 1 < 0 or states.get(m - 1, None) is not None:    # 越界或有子——block
-                    cnt_block += 1
-                if w + n >= width or states.get(m + n, None) is not None:
-                    cnt_block += 1
-                cnt[cnt_block] += 1
+                if n != self.n_in_row:  # 5个子不需计算顶格
+                    cnt_block = 0
+                    if w - 1 < 0 or states.get(m - 1, None) is not None:    # 越界或有子——block
+                        cnt_block += 1
+                    if w + n >= width or states.get(m + n, None) is not None:
+                        cnt_block += 1
+                    cnt[cnt_block] += 1
+                else:   # 胜利
+                    cnt[0] += 1
+        # endif
 
         # 竖直
         if states.get(m - width, None) != player:
             if (h in range(height - n + 1) and
                     len(set(states.get(i, None) for i in range(m, m + n * width, width))) == 1):
-                cnt_block = 0
-                if h - 1 < 0 or states.get(m - width, None) is not None:    # 越界或有子——block
-                    cnt_block += 1
-                if h + n >= height or states.get(m + n * width, None) is not None:
-                    cnt_block += 1
-                cnt[cnt_block] += 1
+                if n != self.n_in_row:  # 5个子不需计算顶格
+                    cnt_block = 0
+                    if h - 1 < 0 or states.get(m - width, None) is not None:    # 越界或有子——block
+                        cnt_block += 1
+                    if h + n >= height or states.get(m + n * width, None) is not None:
+                        cnt_block += 1
+                    cnt[cnt_block] += 1
+                else:  # 胜利
+                    cnt[0] += 1
+        # endif
 
         # 右下
         if states.get(m - (width + 1), None) != player:
             if (w in range(width - n + 1) and h in range(height - n + 1) and
                     len(set(states.get(i, None) for i in range(m, m + n * (width + 1), width + 1))) == 1):
-                cnt_block = 0
-                if (w - 1 < 0 or h - 1 < 0) or states.get(m - (width + 1), None) is not None:    # 越界或有子——block
-                    cnt_block += 1
-                if (w + n >= width or h + n >= height) or states.get(m + n * (width + 1), None) is not None:
-                    cnt_block += 1
-                cnt[cnt_block] += 1
+                if n != self.n_in_row:  # 5个子不需计算顶格
+                    cnt_block = 0
+                    if (w - 1 < 0 or h - 1 < 0) or states.get(m - (width + 1), None) is not None:    # 越界或有子——block
+                        cnt_block += 1
+                    if (w + n >= width or h + n >= height) or states.get(m + n * (width + 1), None) is not None:
+                        cnt_block += 1
+                    cnt[cnt_block] += 1
+                else:  # 胜利
+                    cnt[0] += 1
+        # endif
 
         # 左下
         if states.get(m - (width - 1), None) != player:
             if (w in range(n - 1, width) and h in range(height - n + 1) and
                     len(set(states.get(i, None) for i in range(m, m + n * (width - 1), width - 1))) == 1):
                 cnt_block = 0
-                if (w + 1 >= width or h - 1 < 0) or states.get(m - (width - 1), None) is not None:  # 越界或有子——block
-                    cnt_block += 1
-                if (w - n < 0 or h + n >= height) or states.get(m + n * (width - 1), None) is not None:
-                    cnt_block += 1
-                cnt[cnt_block] += 1
+                if n != self.n_in_row:  # 5个子不需计算顶格
+                    if (w + 1 >= width or h - 1 < 0) or states.get(m - (width - 1), None) is not None:  # 越界或有子——block
+                        cnt_block += 1
+                    if (w - n < 0 or h + n >= height) or states.get(m + n * (width - 1), None) is not None:
+                        cnt_block += 1
+                    cnt[cnt_block] += 1
+                else:  # 胜利
+                    cnt[0] += 1
+        # endif
 
         # if sum(cnt) > 0:
         #     print(cnt, player)
@@ -171,7 +201,8 @@ class Board:
                 cnt, player = self.count_x_in_row(m, x)
                 # realCnt = cnt - last_cnt    # 有多少个n 就会重复计算多少个n-1 需要减去
                 for i, c in enumerate(cnt):
-                    value += c * (10 ** (x-i)) * bonus[player]   # max player = 1 min = -1
+                    # 为了打破僵局 加分加上bonus
+                    value += c * ((10 ** (x-i)) + bonus[curPlayer]) * bonus[player]   # max player = 1 min = -1
                 # last_cnt = cnt
         return value
 

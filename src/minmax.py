@@ -45,7 +45,10 @@ class TreeNode:
         self.board = deepcopy(board)
 
     def getAction(self):
-        return self.board.sensible_moves()
+        # 第一次改进：随机shuffle
+        result = self.board.sensible_moves()
+        np.random.shuffle(result)
+        return result
 
     def utility(self):
         return self.board.eval_state()
