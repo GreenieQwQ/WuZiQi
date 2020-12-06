@@ -1,18 +1,10 @@
 from __future__ import print_function
-from game import Board, Game
+from game import *
 from minmax import *
 
-class Human:
-    """
-    human player
-    """
-
+class Human(BasePlayer):
     def __init__(self):
         self.player = None
-
-    # 由server赋予index
-    def set_player_ind(self, p):
-        self.player = p
 
     def get_action(self, board):
         try:
@@ -38,12 +30,14 @@ def run():
         board = Board(width=width, height=height, n_in_row=n)
         game = Game(board)
         # human player, input your move in the format: 2,3
-        playerMax = Human()
+        # playerMax = Human()
+        playerMax = minMax("max", depth=2)
         playerMin = minMax("min", depth=4)
 
         # set start_player=0 for human first
         game.start_play(playerMax, playerMin, start_player=0, shown=1)
     except KeyboardInterrupt:
+        game.statistics()
         print('\nThank you for playing.')
 
 

@@ -1,37 +1,49 @@
 from copy import deepcopy
+from game import BasePlayer
 import numpy as np
-
-INF = 18340206   # 一个十分大的数
+INF = 183402060   # 一个十分大的数
 
 class zobrist:
-    def __init__(self, w, h):
-        self.list = np.random.randint(-INF, INF, size=(w*h, ))  # 随机数组
-        self.explored = set()
+    def __init__(self, w=11, h=11):
+        self.listA = np.random.randint(-((2**31)-1), 2**31, size=(w*h, ))  # 随机数组
+        self.listB = np.random.randint(-((2 ** 31) - 1), 2 ** 31, size=(w * h,))  # 随机数组
+        self.explored = {}
+        self.explored_nodes = 0
 
     def __contains__(self, node):
         return self.hash(node.board) in self.explored
 
-    def append(self, node):
-        self.explored.add(self.hash(node.board))
+    def __getitem__(self, node):
+        return self.explored[self.hash(node.board)]
+
+    def add(self, node, val, depth):
+        self.explored[self.hash(node.board)] = {}
+        self.explored[self.hash(node.board)]["val"] = val
+        self.explored[self.hash(node.board)]["depth"] = depth
 
     def hash(self, board):
         h = 0
         for k in board.states:
-            h ^= self.list[k]
+            h ^= (self.listA[k] if k == board.players[0] else self.listB[k])
         return h
 
-class minMax:
+    def clear(self):
+        self.explored.clear()
+
+    def updateDepth(self, d=2):
+        for k in self.explored:
+            self.explored[k]["depth"] += d
+
+class minMax(BasePlayer):
     def __init__(self, mode, depth):
         self.player = None
         self.mode = mode
         self.depth = depth
-
-    # 由server赋予index
-    def set_player_ind(self, p):
-        self.player = p
+        self.z = zobrist(11, 11)
 
     def get_action(self, board):
-        move = alpha_beta_search(board, mode=self.mode, depth=self.depth)
+        self.z.updateDepth()
+        move = alpha_beta_search(board, mode=self.mode, depth=self.depth, z=self.z)
         if move is None:
             print("WARNING: something might be wrong. Move is None.")
         return move
@@ -39,15 +51,20 @@ class minMax:
     def __str__(self):
         return "robert {}".format(self.player)
 
+    def statistics(self):
+        print("robert %d has explored %d nodes." % (self.player, self.z.explored_nodes))
+
 
 class TreeNode:
     def __init__(self, board):
         self.board = deepcopy(board)
 
+    def count_Blocked_4(self):
+        return self.board.count_x_in_row()
+
     def getAction(self):
         # 第一次改进：随机shuffle
         result = self.board.sensible_moves()
-        np.random.shuffle(result)
         return result
 
     def utility(self):
@@ -57,11 +74,19 @@ class TreeNode:
         return self.board.game_end()[0]
 
     def result(self, act):
-        newBoard = deepcopy(self.board)
-        newBoard.do_move(act)
-        return TreeNode(newBoard)
+        # newBoard = deepcopy(self.board)
+        # newBoard.do_move(act)
+        # return TreeNode(newBoard)
+        self.board.do_move(act)
+        # return self
+
+    def resume(self, act):
+        self.board.cancel_move(act)
+        # return self
+
 
 def min_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
+    z_list.explored_nodes += 1
     if depth == 0 or node.terminate():
         return None, node.utility()
 
@@ -69,12 +94,15 @@ def min_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
     v = INF
     acts = node.getAction()
     for a in acts:
-        result = node.result(a)
-        if result in z_list:    # 环检测 已探索
-            continue
+        # 下一步棋
+        node.result(a)
+        if node in z_list and z_list[node]["depth"] < depth:  # 置换表含有已探索的更深的此节点 注：不能相等 TODO: why
+            node_val = z_list[node]["val"]
         else:
-            z_list.append(result)
-        next_act, node_val = max_value(result, alpha, beta, depth-1, z_list)
+            next_act, node_val = max_value(node, alpha, beta, depth-1, z_list)
+            z_list.add(node, node_val, depth)
+        # 恢复
+        node.resume(a)
         if node_val < v:
             m = a
             v = node_val
@@ -85,6 +113,7 @@ def min_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
 
 
 def max_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
+    z_list.explored_nodes += 1
     if depth == 0 or node.terminate():
         return None, node.utility()
 
@@ -92,12 +121,14 @@ def max_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
     v = -INF
     acts = node.getAction()
     for a in acts:
-        result = node.result(a)
-        if result in z_list:  # 环检测 已探索
-            continue
+        node.result(a)
+        if node in z_list and z_list[node]["depth"] < depth:  # 置换表含有已探索的更深的节点
+            node_val = z_list[node]["val"]
         else:
-            z_list.append(result)
-        next_act, node_val = min_value(result, alpha, beta, depth-1, z_list)
+            next_act, node_val = min_value(node, alpha, beta, depth-1, z_list)
+            z_list.add(node, node_val, depth)
+        # 恢复
+        node.resume(a)
         if node_val > v:
             m = a
             v = node_val
@@ -107,9 +138,8 @@ def max_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
     return m, v
 
 
-def alpha_beta_search(board, depth, mode="max"):
+def alpha_beta_search(board, depth, z, mode):
     init_node = TreeNode(board)
-    z = zobrist(board.width, board.height)
     if mode == "max":
         m, v = max_value(init_node, -INF, INF, depth, z)
     else:
