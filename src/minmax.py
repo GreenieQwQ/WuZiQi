@@ -59,8 +59,12 @@ class TreeNode:
     def __init__(self, board):
         self.board = deepcopy(board)
 
-    def count_Blocked_4(self):
-        return self.board.count_x_in_row()
+    def count_Blocked_4_changed(self, m):
+        origin_cnt4 = self.board.count_all_x_in_row(4)
+        self.board.do_move(m)
+        after_cnt4 = self.board.count_all_x_in_row(4)
+        self.board.cancel_move(m)
+        return np.all(origin_cnt4 != after_cnt4)
 
     def getAction(self):
         # 第一次改进：随机shuffle
@@ -94,7 +98,15 @@ def min_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
     v = INF
     acts = node.getAction()
     for a in acts:
+        # 冲四延伸
+        if node.count_Blocked_4_changed(a):
+            elastic = True
+        else:
+            elastic = False
+
         # 下一步棋
+        if elastic:
+            depth += 2
         node.result(a)
         if node in z_list and z_list[node]["depth"] < depth:  # 置换表含有已探索的更深的此节点 注：不能相等 TODO: why
             node_val = z_list[node]["val"]
@@ -103,6 +115,9 @@ def min_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
             z_list.add(node, node_val, depth)
         # 恢复
         node.resume(a)
+        if elastic:
+            depth -= 2
+
         if node_val < v:
             m = a
             v = node_val

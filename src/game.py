@@ -16,7 +16,6 @@ class BasePlayer:
         pass
 
 
-# TODO: 增加一个评估整个局势的函数
 class Board:
     """board for the game"""
 
@@ -24,8 +23,8 @@ class Board:
         self.width = int(kwargs.get('width', 11))
         self.height = int(kwargs.get('height', 11))
         # 记录棋盘的状态
-        # key: move as location on the board,
-        # value: player as pieces type
+        # key: 在棋盘上的位置（以一维数组索引）
+        # value: 下棋的player
         self.states = {}
         # need how many pieces in a row to win
         self.n_in_row = int(kwargs.get('n_in_row', 5))
@@ -40,7 +39,7 @@ class Board:
         # keep available moves in a list
         self.availables = list(range(self.width * self.height))
         self.states = {}
-        self.last_move = None
+        # self.last_move = None
 
     def move_to_location(self, move):
         """
@@ -65,15 +64,18 @@ class Board:
             return None
         return move
 
-    # 判断下子是否明智
+    # 判断move是否明智
     def is_sensible_move(self, move):
+        # 邻居
         nei = [move - 1, move + 1, move - self.width, move + self.width,
                move - self.width - 1, move - self.width + 1, move + self.width - 1, move + self.width + 1]
         h = move // self.width
         w = move % self.width
+        # 邻居是否有已下的子
         for chess in nei:
             if chess in range(self.width * self.height) and chess in self.states:
                 hh, ww = self.move_to_location(chess)
+                # 因为是一维数组 需要此条件保证不会出现跨边的情形
                 if abs(h - hh) + abs(w - ww) <= 2:
                     return True
         # endfor
@@ -85,9 +87,17 @@ class Board:
             result_set = set([self.width // 2 * self.height + self.width // 2])
         else:
             result_set = set([m for m in self.availables if self.is_sensible_move(m)])
-        # np.random.shuffle(result_set)
 
-        # 排序 优先
+        # 随机排序
+        # result = list(result_set)
+        # np.random.shuffle(result)
+        # return  result
+
+        # 不排序
+        # return [self.width // 2 * self.height + self.width // 2] if len(self.availables) == self.width * self.height \
+        #         else [m for m in self.availables if self.is_sensible_move(m)]
+
+        # 优先连子排序
         result = []
         cnt3 = self.count_all_x_in_row(3)
         cnt4 = self.count_all_x_in_row(4)
@@ -118,6 +128,7 @@ class Board:
         except KeyError:
             print("WARNING: key doesn't exist.")
 
+    # 下棋
     def do_move(self, move):
         self.states[move] = self.current_player
         # 可下子减少
@@ -129,7 +140,7 @@ class Board:
             else self.players[1]
         )
         # 记录上一次的行动
-        self.last_move = move
+        # self.last_move = move
 
     # 数对于move有多少个player的x连子（仅数右下、左下方向）
     # 连子有三种情形：一种是被挡住一边的 一种是两边都被挡住的 一种是正常的
@@ -225,8 +236,8 @@ class Board:
     # TODO: 未消除重复计算3与4的情形
     # TODO: 未计算被挡住了的3、4情形
     def eval_state(self):
-        # width = self.width
-        # height = self.height
+        width = self.width
+        height = self.height
         curPlayer = self.current_player
 
         bonus = [1, -1]
@@ -237,6 +248,7 @@ class Board:
             bonus[1] *= 1.5
         # endif
         value = 0
+
         for x in np.arange(5, 2, -1):
             # 计算形成x个子的个数
             cntP = self.count_all_x_in_row(x)
@@ -245,7 +257,12 @@ class Board:
                     # 为了打破僵局 加分加上bonus
                     value += c * (10 ** (x - i)) * bonus[player]  # max player = 1 min = -1
             # last_cnt = cnt
-        # for m in moved:
+
+        moved = list(set(range(width * height)) - set(self.availables))
+        for m in moved:
+            h, w = self.move_to_location(m)
+            value += (1 if (abs(h - height / 2) <= height / 4 and abs(w - width / 2) <= width / 4) else 0) * bonus[
+                player]
         #     # last_cnt = np.array([0, 0, 0])
         #     # 从3子开始评估
         #     for x in np.arange(5, 2, -1):
@@ -267,8 +284,6 @@ class Board:
         moved = list(set(range(width * height)) - set(self.availables))
         if len(moved) < self.n_in_row * 2 - 1:
             return False, None
-        # if len(moved) > 5:
-        #     print(self.eval_state())
 
         for m in moved:
             cnt, player = self.count_x_in_row(m, n)
@@ -288,9 +303,6 @@ class Board:
 
     def get_current_player(self):
         return self.current_player
-
-
-
 
 
 # 可视化
@@ -324,7 +336,7 @@ class Game:
         print("Eval: %d" % board.eval_state())
 
     # 开始游戏
-    def start_play(self, player1: BasePlayer, player2: BasePlayer, start_player=0, shown=True):
+    def start_play(self, player1: BasePlayer, player2: BasePlayer, start_player=0, count=11 * 11, shown=True):
         self.p1, self.p2 = player1, player2
         if start_player not in (0, 1):
             raise Exception('start_player should be either 0 (player1 first) '
@@ -336,7 +348,15 @@ class Game:
         players = {p1: player1, p2: player2}
         if shown:
             self.graphic(self.board, player1.player, player2.player)
+
+        i = 0
         while True:
+            i += 1
+            if i >= count:
+                self.statistics()
+                if shown:
+                    print("Game end for maximum counts.")
+                return None
             current_player = self.board.get_current_player()
             player_in_turn = players[current_player]
             move = player_in_turn.get_action(self.board)

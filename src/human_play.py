@@ -26,16 +26,15 @@ class Human(BasePlayer):
 def run():
     n = 5
     width, height = 11, 11
+    board = Board(width=width, height=height, n_in_row=n)
+    game = Game(board)
+    # human player, input your move in the format: 2,3
+    # playerMax = Human()
+    playerMax = minMax("max", depth=2)
+    playerMin = minMax("min", depth=2)
     try:
-        board = Board(width=width, height=height, n_in_row=n)
-        game = Game(board)
-        # human player, input your move in the format: 2,3
-        # playerMax = Human()
-        playerMax = minMax("max", depth=2)
-        playerMin = minMax("min", depth=4)
-
         # set start_player=0 for human first
-        game.start_play(playerMax, playerMin, start_player=0, shown=1)
+        game.start_play(playerMax, playerMin, start_player=0, shown=1, count=20)
     except KeyboardInterrupt:
         game.statistics()
         print('\nThank you for playing.')
