@@ -7,8 +7,8 @@ class zobrist:
     def __init__(self, w=11, h=11):
         self.listA = np.random.randint(-((2**31)-1), 2**31, size=(w*h, ))  # 随机数组
         self.listB = np.random.randint(-((2 ** 31) - 1), 2 ** 31, size=(w * h,))  # 随机数组
-        self.explored = {}
-        self.explored_nodes = 0
+        self.explored = {}  # 置换表
+        self.explored_nodes = 0     # 日志记录功能 与zobrist无关
 
     def __contains__(self, node):
         return self.hash(node.board) in self.explored
@@ -16,10 +16,8 @@ class zobrist:
     def __getitem__(self, node):
         return self.explored[self.hash(node.board)]
 
-    def add(self, node, val, depth):
-        self.explored[self.hash(node.board)] = {}
-        self.explored[self.hash(node.board)]["val"] = val
-        self.explored[self.hash(node.board)]["depth"] = depth
+    def add(self, node, val):
+        self.explored[self.hash(node.board)] = val
 
     def hash(self, board):
         h = 0
@@ -30,9 +28,9 @@ class zobrist:
     def clear(self):
         self.explored.clear()
 
-    def updateDepth(self, d=2):
-        for k in self.explored:
-            self.explored[k]["depth"] += d
+    # def updateDepth(self, d=2):
+    #     for k in self.explored:
+    #         self.explored[k]["depth"] += d
 
 class minMax(BasePlayer):
     def __init__(self, mode, depth):
@@ -103,15 +101,15 @@ def min_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
         else:
             elastic = False
 
-        # 下一步棋
+        # 冲四延伸多搜索两步
         if elastic:
             depth += 2
         node.result(a)
-        if node in z_list and z_list[node]["depth"] < depth:  # 置换表含有已探索的更深的此节点 注：不能相等 TODO: why
-            node_val = z_list[node]["val"]
+        if node in z_list:  # 置换表含有已探索的更深的此节点 注：不能相等 TODO: why
+            node_val = z_list[node]
         else:
             next_act, node_val = max_value(node, alpha, beta, depth-1, z_list)
-            z_list.add(node, node_val, depth)
+            z_list.add(node, node_val)
         # 恢复
         node.resume(a)
         if elastic:
@@ -141,16 +139,16 @@ def max_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
         else:
             elastic = False
 
-        # 下一步棋
+        # 冲四延伸多搜索两步
         if elastic:
             depth += 2
 
         node.result(a)
-        if node in z_list and z_list[node]["depth"] < depth:  # 置换表含有已探索的更深的节点
-            node_val = z_list[node]["val"]
+        if node in z_list:  # 置换表含有已探索的更深的节点
+            node_val = z_list[node]
         else:
             next_act, node_val = min_value(node, alpha, beta, depth-1, z_list)
-            z_list.add(node, node_val, depth)
+            z_list.add(node, node_val)
         # 恢复
         node.resume(a)
         if elastic:
