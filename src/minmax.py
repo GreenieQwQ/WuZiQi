@@ -42,7 +42,7 @@ class minMax(BasePlayer):
         self.z = zobrist(11, 11)
 
     def get_action(self, board):
-        self.z.updateDepth()
+        self.z.clear()
         move = alpha_beta_search(board, mode=self.mode, depth=self.depth, z=self.z)
         if move is None:
             print("WARNING: something might be wrong. Move is None.")
@@ -67,7 +67,6 @@ class TreeNode:
         return np.all(origin_cnt4 != after_cnt4)
 
     def getAction(self):
-        # 第一次改进：随机shuffle
         result = self.board.sensible_moves()
         return result
 
@@ -136,6 +135,16 @@ def max_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
     v = -INF
     acts = node.getAction()
     for a in acts:
+        # 冲四延伸
+        if node.count_Blocked_4_changed(a):
+            elastic = True
+        else:
+            elastic = False
+
+        # 下一步棋
+        if elastic:
+            depth += 2
+
         node.result(a)
         if node in z_list and z_list[node]["depth"] < depth:  # 置换表含有已探索的更深的节点
             node_val = z_list[node]["val"]
@@ -144,6 +153,9 @@ def max_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
             z_list.add(node, node_val, depth)
         # 恢复
         node.resume(a)
+        if elastic:
+            depth -= 2
+
         if node_val > v:
             m = a
             v = node_val

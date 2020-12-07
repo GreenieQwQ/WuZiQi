@@ -102,7 +102,7 @@ class Board:
         # return [self.width // 2 * self.height + self.width // 2] if len(self.availables) == self.width * self.height \
         #         else [m for m in self.availables if self.is_sensible_move(m)]
 
-        # 优先连子排序
+        # 行棋排序
         cnt3 = self.count_all_x_in_row(3)
         cnt4 = self.count_all_x_in_row(4)
         win5 = []
@@ -111,28 +111,37 @@ class Board:
         dec3 = []
         inc3 = []
         for m in result:
+            # 用于判断inc
             self.do_move(m)
             newCnt5 = self.count_all_x_in_row(5)
             newCnt4 = self.count_all_x_in_row(4) if len(win5) == 0 else None
             newCnt3 = self.count_all_x_in_row(3) if len(win5) == 0 and len(dec4) == 0 and len(inc4) == 0 else None
             self.cancel_move(m)
-            if np.sometrue(newCnt5 != 0):    # 胜利
+            # 用于判断dec
+            self.states[m] = self.get_opponent()
+            self.availables.remove(m)
+            oppoCnt5 = self.count_all_x_in_row(5)[self.get_opponent()] if len(win5) == 0 else None
+            oppoCnt4 = self.count_all_x_in_row(4)[self.get_opponent()] if len(win5) == 0 and len(dec4) == 0 and len(
+                inc4) == 0 else None
+            self.states.pop(m)
+            self.availables.append(m)
+
+            if np.sometrue(newCnt5 > 0):  # 胜利
                 win5.append(m)
             if newCnt4 is not None:
-                if np.sometrue(newCnt4[self.get_opponent()][1:] - cnt4[self.get_opponent()][1:] > 0):
+                if np.sometrue(oppoCnt5 > 0):  # 此棋能够使得对方胜利
                     dec4.append(m)
-                elif len(dec4) == 0 and newCnt4[self.current_player][0] - cnt4[self.current_player][0] > 0:
+                elif len(dec4) == 0 and newCnt4[self.current_player][0] - cnt4[self.current_player][0] > 0:  # 己方活4增加
                     inc4.append(m)
             if newCnt3 is not None:
-                if newCnt3[self.get_opponent()][0] - cnt3[self.get_opponent()][0] < 0:
+                if oppoCnt4[0] - cnt4[self.get_opponent()][0] > 0:  # 此棋能够使得对方活4增加
                     dec3.append(m)
+                elif newCnt3[self.current_player][0] - cnt3[self.current_player][0] >= 2:  # 双三
+                    inc4.append(m)
                 elif len(dec3) == 0 and \
-                    (newCnt4[self.current_player][1] - cnt4[self.current_player][1] > 0 or
-                        newCnt3[self.current_player][0] - cnt3[self.current_player][0] > 0):
-                    inc3.append(m)
-
-            # if np.all(newCnt5 != 0) or np.all((cnt3 - newCnt3) != 0) or np.all((cnt4 - newCnt4) != 0):
-            #     result.append(m)
+                        (newCnt4[self.current_player][1] - cnt4[self.current_player][1] > 0 or
+                         newCnt3[self.current_player][0] - cnt3[self.current_player][0] > 0):
+                    inc3.append(m)  # 己方3增加
 
         if len(win5) > 0:
             result = win5
@@ -142,16 +151,21 @@ class Board:
             result = inc4
         elif len(dec3) > 0:
             result = dec3
+        # elif len(inc3) > 0:
+        #     result = inc3
         else:
+            x = 10  # 超参数
             remains = set(result) - set(inc3)
             # print(len(remains))
-            if len(remains) <= 8:
-                result = inc3 + list(remains)
-            else:
-                result = inc3 + list(np.random.choice(list(remains), size=(8, )))
-            # TODO: 采样的有效性堪忧
-            # TODO：使用逆向思维判断xx-x从而可以直接用inc3
-            # np.random.shuffle(result)
+            if len(remains) <= x:
+                r = list(remains)
+                np.random.shuffle(r)
+                result = inc3 + r
+            else:  # 因为剩余的子不是很重要 因此采用负采样前向剪枝
+                result = inc3 + list(np.random.choice(list(remains), size=(x,)))
+            return result
+            # pass
+        np.random.shuffle(result)
         return result
 
     # 悔棋
@@ -277,6 +291,7 @@ class Board:
         height = self.height
         curPlayer = self.current_player
 
+        normal = [1, -1]
         bonus = [1, -1]
         # 到谁下和评估有很大关系
         if curPlayer == self.players[0]:
@@ -309,7 +324,7 @@ class Board:
         moved = list(set(range(width * height)) - set(self.availables))
         for m in moved:
             h, w = self.move_to_location(m)
-            value += (1 if (h in np.arange(height // 4 + 1, 3 * height // 4) and w in np.arange(width // 4 + 1, 3 * width // 4)) else 0) * bonus[player]
+            value += (width + height - abs(h - height / 2) - abs(w - width / 2)) / width * bonus[self.states[m]]
 
         return value
 
