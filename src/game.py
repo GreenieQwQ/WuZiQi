@@ -43,12 +43,12 @@ class Board:
 
     def move_to_location(self, move):
         """
-        3*3 board's looks like:
+        3*3:
             0 1 2
           2 6 7 8
           1 3 4 5
           0 0 1 2
-        and move 5's location is (1,2)
+        move 5 的位置为 (1,2)
         """
         h = move // self.width
         w = move % self.width
@@ -64,30 +64,35 @@ class Board:
             return None
         return move
 
+    def get_opponent(self):
+        return (
+            self.players[0]
+            if self.current_player == self.players[1]
+            else self.players[1]
+        )
+
     # 判断move是否明智
     def is_sensible_move(self, move):
-        # 邻居
-        nei = [move - 1, move + 1, move - self.width, move + self.width,
-               move - self.width - 1, move - self.width + 1, move + self.width - 1, move + self.width + 1]
         h = move // self.width
         w = move % self.width
         # 邻居是否有已下的子
-        for chess in nei:
-            if chess in range(self.width * self.height) and chess in self.states:
-                hh, ww = self.move_to_location(chess)
-                # 因为是一维数组 需要此条件保证不会出现跨边的情形
-                if abs(h - hh) + abs(w - ww) <= 2:
-                    return True
+        for chess in self.states:
+            hh, ww = self.move_to_location(chess)
+            if abs(h - hh) <= 1 and abs(w - ww) <= 1:
+                return True
         # endfor
         return False
 
     # 获取availables中理智的下子
     def sensible_moves(self):
         if len(self.availables) == self.width * self.height:
-            result_set = set([self.width // 2 * self.height + self.width // 2])
+            result = [self.width // 2 * self.height + self.width // 2]
         else:
-            result_set = set([m for m in self.availables if self.is_sensible_move(m)])
+            result = [m for m in self.availables if self.is_sensible_move(m)]
 
+        # if len(self.states) < 2:
+        #     # np.random.shuffle(result)
+        #     return result
         # 随机排序
         # result = list(result_set)
         # np.random.shuffle(result)
@@ -98,20 +103,55 @@ class Board:
         #         else [m for m in self.availables if self.is_sensible_move(m)]
 
         # 优先连子排序
-        result = []
         cnt3 = self.count_all_x_in_row(3)
         cnt4 = self.count_all_x_in_row(4)
+        win5 = []
+        dec4 = []
+        inc4 = []
+        dec3 = []
+        inc3 = []
         for m in result:
             self.do_move(m)
-            newCnt3 = self.count_all_x_in_row(3)
-            newCnt4 = self.count_all_x_in_row(4)
+            newCnt5 = self.count_all_x_in_row(5)
+            newCnt4 = self.count_all_x_in_row(4) if len(win5) == 0 else None
+            newCnt3 = self.count_all_x_in_row(3) if len(win5) == 0 and len(dec4) == 0 and len(inc4) == 0 else None
             self.cancel_move(m)
-            if np.all((cnt3 - newCnt3) != 0) or np.all((cnt4 - newCnt4) != 0):
-                result.append(m)
+            if np.sometrue(newCnt5 != 0):    # 胜利
+                win5.append(m)
+            if newCnt4 is not None:
+                if np.sometrue(newCnt4[self.get_opponent()][1:] - cnt4[self.get_opponent()][1:] > 0):
+                    dec4.append(m)
+                elif len(dec4) == 0 and newCnt4[self.current_player][0] - cnt4[self.current_player][0] > 0:
+                    inc4.append(m)
+            if newCnt3 is not None:
+                if newCnt3[self.get_opponent()][0] - cnt3[self.get_opponent()][0] < 0:
+                    dec3.append(m)
+                elif len(dec3) == 0 and \
+                    (newCnt4[self.current_player][1] - cnt4[self.current_player][1] > 0 or
+                        newCnt3[self.current_player][0] - cnt3[self.current_player][0] > 0):
+                    inc3.append(m)
 
-        remains_set = result_set - set(result)
-        remains = [m for m in remains_set]
-        result += remains
+            # if np.all(newCnt5 != 0) or np.all((cnt3 - newCnt3) != 0) or np.all((cnt4 - newCnt4) != 0):
+            #     result.append(m)
+
+        if len(win5) > 0:
+            result = win5
+        elif len(dec4) > 0:
+            result = dec4
+        elif len(inc4) > 0:
+            result = inc4
+        elif len(dec3) > 0:
+            result = dec3
+        else:
+            remains = set(result) - set(inc3)
+            # print(len(remains))
+            if len(remains) <= 8:
+                result = inc3 + list(remains)
+            else:
+                result = inc3 + list(np.random.choice(list(remains), size=(8, )))
+            # TODO: 采样的有效性堪忧
+            # TODO：使用逆向思维判断xx-x从而可以直接用inc3
+            # np.random.shuffle(result)
         return result
 
     # 悔棋
@@ -142,7 +182,7 @@ class Board:
         # 记录上一次的行动
         # self.last_move = move
 
-    # 数对于move有多少个player的x连子（仅数右下、左下方向）
+    # 数对于move位置有多少个player的x连子（仅数右下、左下方向）
     # 连子有三种情形：一种是被挡住一边的 一种是两边都被挡住的 一种是正常的
     def count_x_in_row(self, m, x):
         width = self.width
@@ -214,9 +254,6 @@ class Board:
                 else:  # 胜利
                     cnt[0] += 1
         # endif
-
-        # if sum(cnt) > 0:
-        #     print(cnt, player)
         return cnt, player
 
     # 计算棋盘中两个player所有连成x的子的个数
@@ -249,30 +286,31 @@ class Board:
         # endif
         value = 0
 
-        for x in np.arange(5, 2, -1):
-            # 计算形成x个子的个数
-            cntP = self.count_all_x_in_row(x)
+        cnt2 = self.count_all_x_in_row(2)
+        cnt3 = self.count_all_x_in_row(3)
+        cnt4 = self.count_all_x_in_row(4)
+        cnt5 = self.count_all_x_in_row(5)
+        # 消除重复计算的连子
+        realCnt4 = cnt4 - cnt5
+        realCnt3 = cnt3 - cnt4
+        realCnt2 = cnt2 - cnt3
+        cnts = [realCnt2, realCnt3, realCnt4, cnt5]
+
+        # 通过cnts根据加分规则计算得分
+        for x, cntP in enumerate(cnts):
             for player, cnt in enumerate(cntP):
                 for i, c in enumerate(cnt):
-                    # 为了打破僵局 加分加上bonus
-                    value += c * (10 ** (x - i)) * bonus[player]  # max player = 1 min = -1
-            # last_cnt = cnt
+                    if x == 3:  # 5子
+                        value += c * (10 ** 6) * bonus[player]  # max player = 1 min = -1
+                    else:
+                        value += c * (10 ** (x + 2 - i)) * bonus[player]
 
+        # 引入位置因素
         moved = list(set(range(width * height)) - set(self.availables))
         for m in moved:
             h, w = self.move_to_location(m)
-            value += (1 if (abs(h - height / 2) <= height / 4 and abs(w - width / 2) <= width / 4) else 0) * bonus[
-                player]
-        #     # last_cnt = np.array([0, 0, 0])
-        #     # 从3子开始评估
-        #     for x in np.arange(5, 2, -1):
-        #         # 计算形成x个子的个数
-        #         cnt, player = self.count_x_in_row(m, x)
-        #         # realCnt = cnt - last_cnt    # 有多少个n 就会重复计算多少个n-1 需要减去
-        #         for i, c in enumerate(cnt):
-        #             # 为了打破僵局 加分加上bonus
-        #             value += c * (10 ** (x-i)) * bonus[player]   # max player = 1 min = -1
-        #         # last_cnt = cnt
+            value += (1 if (h in np.arange(height // 4 + 1, 3 * height // 4) and w in np.arange(width // 4 + 1, 3 * width // 4)) else 0) * bonus[player]
+
         return value
 
     # 判断是否5子
@@ -333,7 +371,9 @@ class Game:
                 else:
                     print('_'.center(8), end='')
             print('\r\n\r\n')
+        print("Chess Num: %d" % len(self.board.states))
         print("Eval: %d" % board.eval_state())
+        self.statistics()
 
     # 开始游戏
     def start_play(self, player1: BasePlayer, player2: BasePlayer, start_player=0, count=11 * 11, shown=True):

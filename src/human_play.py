@@ -30,11 +30,11 @@ def run():
     game = Game(board)
     # human player, input your move in the format: 2,3
     # playerMax = Human()
-    playerMax = minMax("max", depth=2)
-    playerMin = minMax("min", depth=2)
+    playerMax = minMax("max", depth=4)
+    playerMin = minMax("min", depth=6)
     try:
         # set start_player=0 for human first
-        game.start_play(playerMax, playerMin, start_player=0, shown=1, count=20)
+        game.start_play(playerMax, playerMin, start_player=0, shown=1, count=114514)
     except KeyboardInterrupt:
         game.statistics()
         print('\nThank you for playing.')
