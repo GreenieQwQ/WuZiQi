@@ -96,7 +96,7 @@ class Board:
         # 随机排序
         # result = list(result_set)
         # np.random.shuffle(result)
-        # return  result
+        # return result
 
         # 不排序
         # return [self.width // 2 * self.height + self.width // 2] if len(self.availables) == self.width * self.height \
@@ -154,7 +154,7 @@ class Board:
         # elif len(inc3) > 0:
         #     result = inc3
         else:
-            x = 10  # 超参数
+            x = 8  # 超参数
             remains = set(result) - set(inc3)
             # print(len(remains))
             if len(remains) <= x:
@@ -283,9 +283,6 @@ class Board:
 
     # 评估局势
     # 注意：下一个到谁走有很大关系
-    # TODO: 未考虑xx-x的情形
-    # TODO: 未消除重复计算3与4的情形
-    # TODO: 未计算被挡住了的3、4情形
     def eval_state(self):
         width = self.width
         height = self.height
@@ -371,23 +368,24 @@ class Game:
         print("Player", player1, "with X".rjust(3))
         print("Player", player2, "with O".rjust(3))
         print()
+        print(" " * 2, end="")
         for x in range(width):
-            print("{0:8}".format(x), end='')
-        print('\r\n')
+            print("{0:4}".format(x), end='')
+        print()
         for i in range(height - 1, -1, -1):
             print("{0:4d}".format(i), end='')
             for j in range(width):
                 loc = i * width + j
                 p = board.states.get(loc, None)
                 if p == player1:
-                    print('X'.center(8), end='')
+                    print('X'.center(4), end='')
                 elif p == player2:
-                    print('O'.center(8), end='')
+                    print('O'.center(4), end='')
                 else:
-                    print('_'.center(8), end='')
-            print('\r\n\r\n')
-        print("Chess Num: %d" % len(self.board.states))
-        print("Eval: %d" % board.eval_state())
+                    print('_'.center(4), end='')
+            print()
+        print()
+        print("Chess Num: %d\tEval: %d" % (len(self.board.states), board.eval_state()))
         self.statistics()
 
     # 开始游戏
@@ -407,7 +405,7 @@ class Game:
         i = 0
         while True:
             i += 1
-            if i >= count:
+            if i > count:
                 self.statistics()
                 if shown:
                     print("Game end for maximum counts.")
@@ -420,6 +418,7 @@ class Game:
                 self.graphic(self.board, player1.player, player2.player)
             end, winner = self.board.game_end()
             if end:
+                print()
                 self.statistics()
                 if shown:
                     if winner is not None:

@@ -23,15 +23,16 @@ class Human(BasePlayer):
         return "Human {}".format(self.player)
 
 
-def run():
+def run(c=114514):
     n = 5
     width, height = 11, 11
     board = Board(width=width, height=height, n_in_row=n)
     game = Game(board)
     # human player, input your move in the format: 2,3
     playerMax = Human()
-    playerMax = minMax("max", depth=4)
-    playerMin = minMax("min", depth=4)
+    # playerMax = minMax("max", depth=4)
+    playerMin = Human()
+    playerMin = minMax("min", depth=6)
     try:
         # set start_player=0 for human first
         game.start_play(playerMax, playerMin, start_player=0, shown=1, count=114514)
@@ -41,4 +42,5 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    c = 114514
+    run(c)

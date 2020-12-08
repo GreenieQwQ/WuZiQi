@@ -105,7 +105,7 @@ def min_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
         if elastic:
             depth += 2
         node.result(a)
-        if node in z_list:  # 置换表含有已探索的更深的此节点 注：不能相等 TODO: why
+        if node in z_list:  # 置换表含有已探索的此节点
             node_val = z_list[node]
         else:
             next_act, node_val = max_value(node, alpha, beta, depth-1, z_list)
@@ -144,7 +144,7 @@ def max_value(node: TreeNode, alpha, beta, depth, z_list: zobrist):
             depth += 2
 
         node.result(a)
-        if node in z_list:  # 置换表含有已探索的更深的节点
+        if node in z_list:  # 置换表含有已探索的此节点
             node_val = z_list[node]
         else:
             next_act, node_val = min_value(node, alpha, beta, depth-1, z_list)
@@ -169,7 +169,8 @@ def alpha_beta_search(board, depth, z, mode):
         m, v = max_value(init_node, -INF, INF, depth, z)
     else:
         m, v = min_value(init_node, -INF, INF, depth, z)
-    print(m, v)
+    h, w = board.move_to_location(m)
+    print("move_h: %d\tmove_w: %d\tsearch_val: %d" % (h, w, v))
     return m
 
 
