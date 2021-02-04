@@ -1,5 +1,3 @@
-# 可视化以及棋盘的非算法相关部分参考了https://github.com/junxiaosong/AlphaZero_Gomoku
-
 from __future__ import print_function
 import numpy as np
 
@@ -37,8 +35,8 @@ class Board:
                             'less than {}'.format(self.n_in_row))
         self.current_player = self.players[start_player]  # start player
         # keep available moves in a list
-        self.availables = list(range(self.width * self.height))
-        self.states = {}
+        self.availables = list(set(range(self.width * self.height)) - {60, 49, 61, 59})
+        self.states = {60: 0, 49: 1, 61: 0, 59: 1}
         # self.last_move = None
 
     def move_to_location(self, move):
@@ -90,9 +88,6 @@ class Board:
         else:
             result = [m for m in self.availables if self.is_sensible_move(m)]
 
-        # if len(self.states) < 2:
-        #     # np.random.shuffle(result)
-        #     return result
         # 随机排序
         # result = list(result_set)
         # np.random.shuffle(result)
@@ -154,7 +149,7 @@ class Board:
         # elif len(inc3) > 0:
         #     result = inc3
         else:
-            x = 8  # 超参数
+            x = 114514  # 超参数 改动为inf即为不使用前向剪枝
             remains = set(result) - set(inc3)
             # print(len(remains))
             if len(remains) <= x:

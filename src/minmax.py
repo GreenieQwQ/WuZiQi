@@ -1,5 +1,5 @@
 from copy import deepcopy
-from game import BasePlayer
+from base_game import BasePlayer
 import numpy as np
 INF = 183402060   # 一个十分大的数
 

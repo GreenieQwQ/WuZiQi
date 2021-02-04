@@ -1,5 +1,5 @@
 from __future__ import print_function
-from game import *
+from base_game import *
 from minmax import *
 
 class Human(BasePlayer):
@@ -31,16 +31,15 @@ def run(c=114514):
     # human player, input your move in the format: 2,3
     playerMax = Human()
     # playerMax = minMax("max", depth=4)
-    playerMin = Human()
-    playerMin = minMax("min", depth=6)
+    # playerMin = Human()
+    playerMin = minMax("min", depth=4)
     try:
-        # set start_player=0 for human first
-        game.start_play(playerMax, playerMin, start_player=0, shown=1, count=114514)
+        game.start_play(playerMax, playerMin, start_player=0, shown=1, count=c)
     except KeyboardInterrupt:
         game.statistics()
         print('\nThank you for playing.')
 
 
 if __name__ == '__main__':
-    c = 114514
-    run(c)
+    count = 114514
+    run(count)
